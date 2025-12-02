@@ -8,7 +8,7 @@ There are **3 ways** to handle real authentication with Agent B:
 
 ```powershell
 # Close Chrome completely first!
-python -m agent_b --use-session --task "Create a project in Linear"
+python -m autoflow --use-session --task "Create a project in Linear"
 ```
 
 **How it works:**
@@ -45,8 +45,8 @@ Follow prompts:
 
 ### Step 2: Use saved cookies
 ```powershell
-python -m agent_b --cookies cookies/linear.json --task "Create a project in Linear"
-python -m agent_b --cookies cookies/notion.json --task "Filter database in Notion"
+python -m autoflow --cookies cookies/linear.json --task "Create a project in Linear"
+python -m autoflow --cookies cookies/notion.json --task "Filter database in Notion"
 ```
 
 **Pros:**
@@ -103,7 +103,7 @@ CREDENTIALS_JSON=credentials.json
 
 ### Run normally:
 ```powershell
-python -m agent_b --task "Create a project in Linear"
+python -m autoflow --task "Create a project in Linear"
 ```
 
 **Pros:**
@@ -133,7 +133,7 @@ python -m agent_b --task "Create a project in Linear"
 ### For Live Demos:
 ```powershell
 # Close Chrome, then:
-python -m agent_b --use-session --task "your task here"
+python -m autoflow --use-session --task "your task here"
 ```
 
 ### For Testing/Development:
@@ -142,13 +142,13 @@ python -m agent_b --use-session --task "your task here"
 python save_cookies.py
 
 # Then reuse:
-python -m agent_b --cookies cookies/linear.json --task "Create project"
+python -m autoflow --cookies cookies/linear.json --task "Create project"
 ```
 
 ### For Automation/CI:
 ```powershell
 # Setup .env with credentials, then:
-python -m agent_b --headless --task "automated task"
+python -m autoflow --headless --task "automated task"
 ```
 
 ---
@@ -173,19 +173,19 @@ python -m agent_b --headless --task "automated task"
 
 ### Linear with Chrome session:
 ```powershell
-python -m agent_b --use-session --task "How to create a project in Linear"
+python -m autoflow --use-session --task "How to create a project in Linear"
 ```
 
 ### Notion with saved cookies:
 ```powershell
 python save_cookies.py  # Save once
-python -m agent_b --cookies cookies/notion.json --task "Filter a database in Notion"
+python -m autoflow --cookies cookies/notion.json --task "Filter a database in Notion"
 ```
 
 ### GitHub with credentials:
 ```powershell
 # In .env: GITHUB_COM_EMAIL and GITHUB_COM_PASSWORD
-python -m agent_b --task "Create a repository in GitHub"
+python -m autoflow --task "Create a repository in GitHub"
 ```
 
 ---

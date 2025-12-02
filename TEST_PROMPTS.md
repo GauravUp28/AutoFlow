@@ -4,7 +4,7 @@
 
 Run the agent:
 ```bash
-python -m agent_b
+python -m autoflow
 ```
 
 Then paste ANY of these prompts when asked for a task.
@@ -178,13 +178,13 @@ dataset/manual_navigation/[task-name]/
 
 1. **Simple test (no auth):**
 ```bash
-python -m agent_b
+python -m autoflow
 # Enter: Search for playwright in npm
 ```
 
 2. **Auth test (with auto-login):**
 ```bash
-python -m agent_b
+python -m autoflow
 # Enter: How to create a project in Linear
 ```
 

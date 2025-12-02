@@ -7,7 +7,7 @@ Usage:
 4. Press Enter in the terminal when done
 5. Cookies will be saved to cookies/{site}.json
 
-Then use them with: python -m agent_b --cookies cookies/linear.json
+Then use them with: python -m autoflow --cookies cookies/linear.json
 """
 
 from playwright.sync_api import sync_playwright
@@ -82,8 +82,8 @@ def save_cookies_interactive():
         print("✅ All done! Cookies saved.")
         print("="*60)
         print("\nUsage:")
-        print("  python -m agent_b --cookies cookies/linear.json --task 'Create a project in Linear'")
-        print("  python -m agent_b --cookies cookies/notion.json --task 'Filter database in Notion'")
+        print("  python -m autoflow --cookies cookies/linear.json --task 'Create a project in Linear'")
+        print("  python -m autoflow --cookies cookies/notion.json --task 'Filter database in Notion'")
         print("\n")
         
         browser.close()

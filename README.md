@@ -55,11 +55,11 @@ Example `credentials.json`:
 ```
 
 ## What’s Inside (AI-Only)
-- `agent_b/web_automation.py`: Orchestrates URL inference, authentication, AI planning loop, dynamic re-planning, state capture.
-- `agent_b/llm_interpreter.py`: LLM planner + dynamic replan API (`get_steps_and_selectors`, `get_dynamic_steps`).
-- `agent_b/url_inference.py`: Pattern & search-based host discovery (brand → domain).
-- `agent_b/ui_state_capturer.py`: Screenshot helper (smart capture mode).
-- `agent_b/state_tracker.py`: Lightweight DOM change utilities.
+- `autoflow/web_automation.py`: Orchestrates URL inference, authentication, AI planning loop, dynamic re-planning, state capture.
+- `autoflow/llm_interpreter.py`: LLM planner + dynamic replan API (`get_steps_and_selectors`, `get_dynamic_steps`).
+- `autoflow/url_inference.py`: Pattern & search-based host discovery (brand → domain).
+- `autoflow/ui_state_capturer.py`: Screenshot helper (smart capture mode).
+- `autoflow/state_tracker.py`: Lightweight DOM change utilities.
 - (Removed) `heuristic_planner.py`: Eliminated in AI-only implementation.
 
 ## LLM Configuration
@@ -101,7 +101,7 @@ Optional variables to refine behavior:
 - `DEFAULT_FIRST_NAME`, `DEFAULT_LAST_NAME`, `DEFAULT_USERNAME` – Form fill defaults
 - `VERBOSE_DOMAIN_LOGS=1` – Show detailed domain scoring, rejection reasons during URL selection (keep off for clean runs; enable for debugging wrong domain picks)
 
-Unified auth gating is driven by constants in `agent_b/constants.py` (`AUTH_KEYWORDS`, `CREATION_AUTH_KEYWORDS`). Tasks containing any of those tokens are treated as requiring workspace access; read-only tasks (search/view/download) will not be forced through login.
+Unified auth gating is driven by constants in `autoflow/constants.py` (`AUTH_KEYWORDS`, `CREATION_AUTH_KEYWORDS`). Tasks containing any of those tokens are treated as requiring workspace access; read-only tasks (search/view/download) will not be forced through login.
 
 ## Assignment Mapping (Softlight Requirements)
 
