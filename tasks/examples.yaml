@@ -1,0 +1,15 @@
+linear:create_project:
+  app_url: "https://linear.app/"
+  task: "Create a new project"
+linear:filter_issues:
+  app_url: "https://linear.app/"
+  task: "Filter issues by status"
+notion:create_database:
+  app_url: "https://www.notion.so/"
+  task: "Create a new database"
+notion:filter_database:
+  app_url: "https://www.notion.so/"
+  task: "Filter the database for open tasks"
+asana:create_task:
+  app_url: "https://app.asana.com/"
+  task: "Create a new task in the current project"

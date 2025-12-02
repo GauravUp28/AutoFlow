@@ -1,0 +1,11 @@
+playwright==1.48.0
+pydantic==2.8.2
+python-slugify==8.0.4
+openai
+pillow
+python-dotenv
+rich==13.9.4
+beautifulsoup4==4.12.3
+google-generativeai
+anthropic
+requests>=2.31.0

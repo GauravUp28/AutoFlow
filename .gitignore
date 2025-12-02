@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Sensitive files - NEVER commit these!
+.env
+*.env
+credentials.json
+cookies/
+*.cookies
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Outputs (optional - comment out if you want to commit test results)
+dataset/
+screenshots/
+output/
+
+# Logs
+*.log

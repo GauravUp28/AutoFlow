@@ -1,0 +1,6 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "softlight-agent-b"
+version = "0.1.0"
