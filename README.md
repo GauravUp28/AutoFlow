@@ -103,17 +103,6 @@ Optional variables to refine behavior:
 
 Unified auth gating is driven by constants in `autoflow/constants.py` (`AUTH_KEYWORDS`, `CREATION_AUTH_KEYWORDS`). Tasks containing any of those tokens are treated as requiring workspace access; read-only tasks (search/view/download) will not be forced through login.
 
-## Assignment Mapping (Softlight Requirements)
-
-| Requirement | Implementation |
-|-------------|----------------|
-| Capture non-URL states (modals/forms/success) | DOM diff + emergence signals trigger layer & success screenshots; dynamic AI replan inserts follow-up steps |
-| Generalize across apps | Brand → domain inference + AI interpreting task + dynamic replan on newly surfaced UI |
-| 3–5 workflows | Run tasks (e.g., “create project in Linear”, “filter issues in Linear”, “create repository in GitHub”, “search package in npm”) generating datasets under `dataset/` |
-| No hardcoding of tasks | Task string parsed; AI plans steps; no static workflow maps |
-| Real-time adaptation | On modal/success detection, `get_dynamic_steps()` requests additional targeted steps |
-| Deliver dataset | Per-task folder: screenshots (`smart` filtered), `steps_plan.json`, `steps_log.md`, `run_summary.json` |
-
 ## Dataset Artifacts
 Each task directory contains:
 - `steps_plan.json` – Initial AI plan
@@ -122,4 +111,4 @@ Each task directory contains:
 - `steps_log.md` – Human-readable execution log
 - `run_summary.json` – Aggregated counts (layers, success states, total steps)
 
-For deeper reasoning context see `SOFTLIGHT_SOLUTION.md`; sample prompts in `TEST_PROMPTS.md`.
+sample prompts in `TEST_PROMPTS.md`.
