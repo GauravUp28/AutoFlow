@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import re
 import os
 from typing import List, Tuple, Optional
-from agent_b.brand_utils import extract_brands
+from autoflow.brand_utils import extract_brands
 import os
 
 

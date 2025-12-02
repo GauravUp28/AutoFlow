@@ -1,17 +1,17 @@
 from playwright.sync_api import sync_playwright
-from agent_b.ui_state_capturer import capture_screenshot
-from agent_b.state_tracker import detect_ui_change
-from agent_b.llm_interpreter import get_steps_and_selectors, get_dynamic_steps
-from agent_b.auth_support import get_site_credentials, is_login_like, attempt_login, get_login_urls, task_requires_authentication
-from agent_b.url_inference import get_url_for_task
+from autoflow.ui_state_capturer import capture_screenshot
+from autoflow.state_tracker import detect_ui_change
+from autoflow.llm_interpreter import get_steps_and_selectors, get_dynamic_steps
+from autoflow.auth_support import get_site_credentials, is_login_like, attempt_login, get_login_urls, task_requires_authentication
+from autoflow.url_inference import get_url_for_task
 import json
 import time
 import os
 import re
 from urllib.parse import quote_plus
 from urllib.parse import urlparse
-from agent_b.brand_utils import extract_brands
-from agent_b.constants import AUTH_KEYWORDS
+from autoflow.brand_utils import extract_brands
+from autoflow.constants import AUTH_KEYWORDS
 import json
 
 # Metadata generation removed for clean output
@@ -531,7 +531,7 @@ def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=Fa
                 
                 # Handle SSO redirect back to app
                 try:
-                    from agent_b.auth_support import detect_sso_provider
+                    from autoflow.auth_support import detect_sso_provider
                     sso = detect_sso_provider(page)
                     if sso and intended_app_base:
                         print(f"[cyan]Returning from {sso} to app: {intended_app_base}[/cyan]")

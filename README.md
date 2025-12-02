@@ -1,4 +1,4 @@
-# Softlight Agent B – AI-Only Generalized UI State Capture
+# AutoFlow – AI-Only Generalized UI State Capture
 
 Agent B automatically navigates live web apps, performs the requested task, and captures screenshots of every UI state (including non-URL states like modals, forms, transient success banners). No hardcoding of sites or workflows. All step planning is performed by an LLM (OpenAI / Anthropic / Gemini) – no heuristic fallback.
 
@@ -8,7 +8,7 @@ Agent B automatically navigates live web apps, performs the requested task, and 
 python -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python -m playwright install chromium
-python -m agent_b
+python -m autoflow
 ```
 
 Enter any task when prompted, for example:

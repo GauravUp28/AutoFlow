@@ -1,5 +1,5 @@
 import unittest
-from agent_b.constants import AUTH_KEYWORDS, CREATION_AUTH_KEYWORDS
+from autoflow.constants import AUTH_KEYWORDS, CREATION_AUTH_KEYWORDS
 
 class TestConstants(unittest.TestCase):
     def test_auth_keywords_non_empty(self):

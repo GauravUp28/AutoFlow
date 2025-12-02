@@ -1,5 +1,5 @@
 import unittest
-from agent_b.brand_utils import extract_brands
+from autoflow.brand_utils import extract_brands
 
 class TestBrandUtils(unittest.TestCase):
     def test_capitalized_and_in_phrase(self):

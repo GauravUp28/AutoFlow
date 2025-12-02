@@ -373,7 +373,7 @@ def _navigate_to_login_if_needed(page) -> bool:
 def attempt_login(page, creds: dict) -> bool:
     """Try login using AI-generated steps that adapt to any site's login flow, including multi-step logins."""
     import time
-    from agent_b.llm_interpreter import get_login_steps
+    from autoflow.llm_interpreter import get_login_steps
     
     max_login_attempts = 3  # Handle up to 3-step login flows (e.g., email → password → 2FA)
     

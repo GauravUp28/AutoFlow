@@ -3,8 +3,8 @@ import sys
 import argparse
 import re
 from rich import print
-from agent_b.web_automation import run_task_on_webapp
-from agent_b.url_inference import get_url_for_task
+from autoflow.web_automation import run_task_on_webapp
+from autoflow.url_inference import get_url_for_task
 
 import os
 from pathlib import Path
@@ -26,12 +26,12 @@ def main():
             os.environ["PLANNER_PROVIDER"] = "gemini"
     print(f"[cyan]Planner provider: {os.getenv('PLANNER_PROVIDER')}\n[/cyan]")
     print("\n[bold cyan]╔═══════════════════════════════════════════════════════╗[/bold cyan]")
-    print("[bold cyan]║   Softlight Agent B - Fully Automated Workflow        ║[/bold cyan]")
-    print("[bold cyan]║      AI-Powered Browser Automation System             ║[/bold cyan]")
+    print("[bold cyan]║          AutoFlow - Fully Automated Workflow          ║[/bold cyan]")
+    print("[bold cyan]║         AI-Powered Browser Automation System          ║[/bold cyan]")
     print("[bold cyan]╚═══════════════════════════════════════════════════════╝[/bold cyan]\n")
     
     # CLI args and env fallbacks
-    parser = argparse.ArgumentParser(description="Softlight Agent B")
+    parser = argparse.ArgumentParser(description="AutoFlow")
     parser.add_argument("--task", dest="task", help="Task to execute", default=None)
     parser.add_argument("--url", dest="url", help="Optional starting URL (skips inference)", default=None)
     parser.add_argument("--headless", dest="headless", help="Run headless", action="store_true")
@@ -58,7 +58,7 @@ def main():
         url = inferred_url
 
     # Unified brand extraction utility
-    from agent_b.brand_utils import extract_brands
+    from autoflow.brand_utils import extract_brands
     brands = extract_brands(task)
     if url:
         print(f"[green]Using inferred URL: {url}[/green]")
