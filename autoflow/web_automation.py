@@ -4,6 +4,7 @@ from autoflow.state_tracker import detect_ui_change
 from autoflow.llm_interpreter import get_steps_and_selectors, get_dynamic_steps
 from autoflow.auth_support import get_site_credentials, is_login_like, attempt_login, get_login_urls, task_requires_authentication
 from autoflow.url_inference import get_url_for_task
+from autoflow.session_loader import load_session_cookies
 import json
 import time
 import os
@@ -201,7 +202,7 @@ def _robust_fill(page, selector: str, value: str) -> bool:
     return False
 
 
-def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=False, cred_email=None, cred_password=None):
+def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=False, cred_email=None, cred_password=None, cookies_path=None):
     """
     Fully automated workflow execution with screenshot capture at each step.
     No manual intervention required.
@@ -217,6 +218,9 @@ def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=Fa
         slow_mo = 0 if headless else 300
         browser = p.chromium.launch(headless=headless, slow_mo=slow_mo)
         context = browser.new_context(viewport={'width': 1920, 'height': 1080})
+        if cookies_path:
+            print(f"[cyan]Loading cookies from {cookies_path}...[/cyan]")
+            load_session_cookies(context, cookies_path)
         page = context.new_page()
         page.set_viewport_size({"width": 1920, "height": 1080})
         page.set_default_timeout(15000)  # 15s timeout - fail fast

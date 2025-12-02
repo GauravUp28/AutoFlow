@@ -38,6 +38,7 @@ def main():
     parser.add_argument("--no-auth", dest="no_auth", help="Skip authentication (for read-only tasks)", action="store_true")
     parser.add_argument("--email", dest="cred_email", help="Login email/username (non-interactive)", default=None)
     parser.add_argument("--password", dest="cred_password", help="Login password (non-interactive; consider omitting to be prompted)", default=None)
+    parser.add_argument("--cookies", dest="cookies_path", help="Path to cookies JSON file", default=None)
     args = parser.parse_args()
 
     task = args.task or os.getenv("TASK")
@@ -94,7 +95,8 @@ def main():
         headless=True if args.headless else None,
         skip_auth=args.no_auth,
         cred_email=args.cred_email,
-        cred_password=args.cred_password
+        cred_password=args.cred_password,
+        cookies_path=args.cookies_path
     )
     
     print(f"\n[bold cyan]✓ All done! Check your screenshots in:[/bold cyan]")
