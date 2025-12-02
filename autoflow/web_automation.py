@@ -344,7 +344,7 @@ def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=Fa
             pass
         
         print(f"\n[cyan]========================================")
-        print(f"[cyan] Agent B: Fully Automated Workflow")
+        print(f"[cyan] AutoFlow: Fully Automated Workflow")
         print(f"[cyan]========================================")
         print(f"[green] Task: {task}")
         print(f"[green] Starting URL: {page.url or url or 'Manual'}")

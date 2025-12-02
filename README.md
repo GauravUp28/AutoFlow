@@ -1,6 +1,6 @@
 # AutoFlow – AI-Only Generalized UI State Capture
 
-Agent B automatically navigates live web apps, performs the requested task, and captures screenshots of every UI state (including non-URL states like modals, forms, transient success banners). No hardcoding of sites or workflows. All step planning is performed by an LLM (OpenAI / Anthropic / Gemini) – no heuristic fallback.
+AutoFlow automatically navigates live web apps, performs the requested task, and captures screenshots of every UI state (including non-URL states like modals, forms, transient success banners). No hardcoding of sites or workflows. All step planning is performed by an LLM (OpenAI / Anthropic / Gemini) – no heuristic fallback.
 
 ## Quickstart (Windows PowerShell)
 
@@ -21,7 +21,7 @@ Outputs are saved under `dataset/<site-slug>/<task-slug>/` including per-step sc
 
 ## 🔐 Authentication (Minimal, AI-Centric)
 
-Agent B supports **3 ways** to handle real authentication:
+AutoFlow supports **3 ways** to handle real authentication:
 
 The system prompts for credentials only when required (task contains auth keywords and login surface detected). Provide them interactively or through env vars:
 ```env

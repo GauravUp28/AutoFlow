@@ -1,4 +1,4 @@
-# Test Prompts for Softlight Agent B
+# Test Prompts for Softlight AutoFlow
 
 ## How to Test
 

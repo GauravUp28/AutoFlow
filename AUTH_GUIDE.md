@@ -1,6 +1,6 @@
 # Real Authentication Guide
 
-There are **3 ways** to handle real authentication with Agent B:
+There are **3 ways** to handle real authentication with AutoFlow:
 
 ## Option 1: Use Your Chrome Session (Easiest) ⭐
 
