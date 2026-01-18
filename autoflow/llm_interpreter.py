@@ -2,10 +2,25 @@ import os
 from dotenv import load_dotenv
 import json
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from bs4 import BeautifulSoup
 
 load_dotenv()
+
+# Import vision utilities
+try:
+    from autoflow.vision_utils import (
+        is_vision_enabled,
+        prepare_screenshot_for_vision,
+        build_openai_vision_message,
+        build_anthropic_vision_message,
+        build_gemini_vision_content,
+        get_vision_model,
+    )
+    VISION_AVAILABLE = True
+except ImportError:
+    VISION_AVAILABLE = False
+    def is_vision_enabled(): return False
 
 def _extract_page_context(html: str | None) -> dict:
     """Extracts lightweight, high-signal page context for the planner.
@@ -160,6 +175,119 @@ def _build_planner_prompt(task: str, url: str | None, html: str | None) -> str:
     return prompt
 
 
+def _build_vision_planner_prompt(task: str, url: str | None, html: str | None) -> str:
+    """Build enhanced prompt that instructs model to use screenshot context."""
+    ctx = _extract_page_context(html)
+    clickables = ctx["clickables"]
+    inputs = ctx["inputs"]
+
+    guidance = {
+        "task": task,
+        "url": url or "unknown",
+        "clickables": clickables,
+        "inputs": inputs,
+    }
+
+    schema = (
+        "Return ONLY a JSON array. Each item must be an object with: "
+        "description (string), action (navigate|click|fill|wait|scroll|press), "
+        "selector (string for click/fill; omit for navigate), "
+        "url (string only when action=navigate), value (string only when action=fill), "
+        "key (string only when action=press, e.g., 'Enter')."
+    )
+
+    rules = (
+        "Rules: "
+        "1) CRITICAL: Use the SCREENSHOT to visually identify UI elements. Cross-reference with DOM context. "
+        "2) Decompose the task into ALL required actions. Don't stop after one step. "
+        "3) For buttons/links: Use the visible TEXT you see in the screenshot as the selector. "
+        "4) For inputs: Use placeholder text, label text, or aria-label visible in DOM context. "
+        "5) NEVER use CSS class selectors. Use visible text, aria-label, or semantic identifiers. "
+        "6) If you see a search box visually, generate: fill → press Enter → wait → click result. "
+        "7) For create/new tasks: Click the visible 'New' or '+' button FIRST, then fill the form. "
+        "8) After submit/create actions, ALWAYS add a wait step (3+ seconds) for page to update. "
+        "9) Last step should be wait or scroll to capture final state."
+    )
+
+    prompt = (
+        f"You are an expert UI automation planner with VISUAL understanding.\n\n"
+        f"IMPORTANT: You have been provided a SCREENSHOT of the current page. "
+        f"Use BOTH the visual information AND the DOM context to create accurate selectors.\n\n"
+        f"VISUAL ANALYSIS INSTRUCTIONS:\n"
+        f"1. Look at the screenshot to identify the exact layout and element positions\n"
+        f"2. Identify buttons, links, input fields, and interactive elements visually\n"
+        f"3. Note any modals, overlays, or popups visible in the screenshot\n"
+        f"4. Cross-reference visual elements with the DOM context below\n\n"
+        f"CURRENT PAGE: {url or 'unknown'}\n"
+        f"TASK: {task}\n\n"
+        f"DOM Context (for selector hints):\n{json.dumps(guidance, ensure_ascii=False, indent=2)}\n\n"
+        f"{schema}\n{rules}\n\n"
+        f"Return only the JSON array with ALL steps required."
+    )
+    return prompt
+
+
+def _call_with_vision_openai(prompt: str, screenshot_b64: str, model_override: str = None) -> Optional[str]:
+    """Make vision API call to OpenAI. Returns response text or None."""
+    try:
+        import openai
+        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        model = model_override or get_vision_model("openai") or "gpt-4o-mini"
+
+        messages = [
+            {"role": "system", "content": "You are a precise UI automation planner with visual understanding. Return only valid JSON arrays."}
+        ] + build_openai_vision_message(prompt, screenshot_b64)
+
+        resp = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.0,
+            max_tokens=1500,
+        )
+        return resp.choices[0].message.content
+    except Exception as e:
+        print(f"[yellow]OpenAI vision call failed: {e}[/yellow]")
+        return None
+
+
+def _call_with_vision_anthropic(prompt: str, screenshot_b64: str, model_override: str = None) -> Optional[str]:
+    """Make vision API call to Anthropic. Returns response text or None."""
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        model = model_override or get_vision_model("anthropic") or "claude-3-5-sonnet-latest"
+
+        messages = build_anthropic_vision_message(prompt, screenshot_b64)
+
+        resp = client.messages.create(
+            model=model,
+            max_tokens=1500,
+            temperature=0.0,
+            system="You are a precise UI automation planner with visual understanding. Return only valid JSON arrays.",
+            messages=messages,
+        )
+        return "".join(getattr(p, "text", "") for p in resp.content)
+    except Exception as e:
+        print(f"[yellow]Anthropic vision call failed: {e}[/yellow]")
+        return None
+
+
+def _call_with_vision_gemini(prompt: str, image_bytes: bytes, model_override: str = None) -> Optional[str]:
+    """Make vision API call to Gemini. Returns response text or None."""
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+        model_name = model_override or get_vision_model("gemini") or "gemini-1.5-pro"
+        model = genai.GenerativeModel(model_name)
+
+        content = build_gemini_vision_content(prompt, image_bytes)
+        resp = model.generate_content(content)
+        return getattr(resp, "text", "")
+    except Exception as e:
+        print(f"[yellow]Gemini vision call failed: {e}[/yellow]")
+        return None
+
+
 def _extract_json_array(text: str) -> List[Dict[str, Any]]:
     """Best-effort extraction of a JSON array from model output."""
     if not text:
@@ -209,21 +337,53 @@ def _validate_steps(steps: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return out[:20]
 
 
-def get_steps_and_selectors(task, url=None, html=None):
+def get_steps_and_selectors(task, url=None, html=None, screenshot: bytes = None):
     """
     Generate step-by-step automation plan using available AI services.
-    Provider order (unless overridden): OpenAI -> Anthropic -> Gemini -> Heuristic.
+
+    Args:
+        task: The task description
+        url: Current page URL
+        html: Current page HTML
+        screenshot: Optional screenshot bytes for vision-enhanced planning
+
+    Provider order (unless overridden): OpenAI -> Anthropic -> Gemini -> Fallback.
+    When USE_VISION=1 and screenshot provided, uses vision-capable models first.
     """
-    
+
     # Provider preferences
     provider = (os.getenv("PLANNER_PROVIDER") or "").lower()
     model_override = os.getenv("PLANNER_MODEL")
 
-    prompt = _build_planner_prompt(task, url, html)
+    # Prepare vision data if enabled and screenshot provided
+    vision_data = None
+    if VISION_AVAILABLE and is_vision_enabled() and screenshot:
+        result = prepare_screenshot_for_vision(screenshot)
+        if result:
+            vision_data = {"b64": result[0], "bytes": result[1], "meta": result[2]}
+            print(f"[dim]Vision mode: image prepared ({result[2].get('optimized_size', 'unknown')})[/dim]")
+
+    # Build appropriate prompt
+    if vision_data:
+        prompt = _build_vision_planner_prompt(task, url, html)
+    else:
+        prompt = _build_planner_prompt(task, url, html)
 
     # Try OpenAI
     openai_key = os.getenv("OPENAI_API_KEY")
     if (provider in ["", "openai"]) and openai_key:
+        # Try vision first if available
+        if vision_data:
+            content = _call_with_vision_openai(prompt, vision_data["b64"], model_override)
+            if content:
+                steps = _extract_json_array(content)
+                steps = _validate_steps(steps)
+                if steps:
+                    print("[green]✓ Vision planning succeeded (OpenAI)[/green]")
+                    return steps
+                print("[yellow]Vision returned invalid response, falling back to text[/yellow]")
+
+        # Text-only fallback
         try:
             import openai
             client = openai.OpenAI(api_key=openai_key)
@@ -248,6 +408,18 @@ def get_steps_and_selectors(task, url=None, html=None):
     # Try Anthropic
     anthropic_key = os.getenv("ANTHROPIC_API_KEY")
     if (provider in ["", "anthropic"]) and anthropic_key:
+        # Try vision first if available
+        if vision_data:
+            content = _call_with_vision_anthropic(prompt, vision_data["b64"], model_override)
+            if content:
+                steps = _extract_json_array(content)
+                steps = _validate_steps(steps)
+                if steps:
+                    print("[green]✓ Vision planning succeeded (Anthropic)[/green]")
+                    return steps
+                print("[yellow]Vision returned invalid response, falling back to text[/yellow]")
+
+        # Text-only fallback
         try:
             import anthropic
             client = anthropic.Anthropic(api_key=anthropic_key)
@@ -270,6 +442,18 @@ def get_steps_and_selectors(task, url=None, html=None):
     # Try Google Gemini
     gemini_key = os.getenv("GEMINI_API_KEY")
     if (provider in ["", "google", "gemini"]) and gemini_key:
+        # Try vision first if available
+        if vision_data:
+            content = _call_with_vision_gemini(prompt, vision_data["bytes"], model_override)
+            if content:
+                steps = _extract_json_array(content)
+                steps = _validate_steps(steps)
+                if steps:
+                    print("[green]✓ Vision planning succeeded (Gemini)[/green]")
+                    return steps
+                print("[yellow]Vision returned invalid response, falling back to text[/yellow]")
+
+        # Text-only fallback
         try:
             import google.generativeai as genai
             genai.configure(api_key=gemini_key)
@@ -283,7 +467,7 @@ def get_steps_and_selectors(task, url=None, html=None):
                 return steps
         except Exception:
             pass
-    
+
     # No heuristic fallback in AI-only mode; return minimal safe plan
     # Last resort: generic minimal plan
     return [
@@ -292,13 +476,28 @@ def get_steps_and_selectors(task, url=None, html=None):
     ]
 
 
-def get_dynamic_steps(task: str, url: str | None, html: str | None, history: list[dict]):
+def get_dynamic_steps(task: str, url: str | None, html: str | None, history: list[dict], screenshot: bytes = None):
     """Request follow-up steps from the LLM given newly appeared UI (modal/form/success) and prior execution history.
+
+    Args:
+        task: The original task description
+        url: Current page URL
+        html: Current page HTML
+        history: List of previously executed steps
+        screenshot: Optional screenshot bytes for vision-enhanced planning
+
     Returns a validated list of additional steps (may be empty).
     This does NOT fall back to heuristics.
     """
     provider = (os.getenv("PLANNER_PROVIDER") or "").lower()
     model_override = os.getenv("PLANNER_MODEL")
+
+    # Prepare vision data if enabled and screenshot provided
+    vision_data = None
+    if VISION_AVAILABLE and is_vision_enabled() and screenshot:
+        result = prepare_screenshot_for_vision(screenshot)
+        if result:
+            vision_data = {"b64": result[0], "bytes": result[1], "meta": result[2]}
 
     # Condense history for prompt (limit last 12)
     recent = history[-12:]
@@ -317,15 +516,33 @@ def get_dynamic_steps(task: str, url: str | None, html: str | None, history: lis
     if html:
         dom_slice = re.sub(r"\s+", " ", html)[:4000]  # cap length
 
-    prompt = (
-        "You are continuing an in-progress UI automation plan. "
-        "Given new UI state (possibly a modal/form/success layer) produce the NEXT focused steps only.\n\n"
-        f"Task: {task}\nCurrent URL: {url or 'unknown'}\n"
-        f"Recent Steps JSON: {json.dumps(hist_serializable, ensure_ascii=False)}\n\n"
-        f"DOM Slice: {dom_slice}\n\n"
-        "Return ONLY a JSON array of objects with keys: description, action (navigate|click|fill|wait|scroll), selector (omit if navigate), url (only if navigate), value (only if fill). "
-        "Skip any redundant login/auth. Prefer interacting with newly visible modal/form fields or closing success banners. Limit to 5 steps." 
-    )
+    # Build prompt - enhanced for vision if available
+    if vision_data:
+        prompt = (
+            "You are continuing an in-progress UI automation plan. "
+            "You have been provided a SCREENSHOT of the current page state.\n\n"
+            "VISUAL ANALYSIS: Look at the screenshot to identify:\n"
+            "- Any newly appeared modals, dialogs, or popups\n"
+            "- Form fields that need to be filled\n"
+            "- Success/error banners or messages\n"
+            "- Buttons to proceed or close the current layer\n\n"
+            f"Task: {task}\nCurrent URL: {url or 'unknown'}\n"
+            f"Recent Steps JSON: {json.dumps(hist_serializable, ensure_ascii=False)}\n\n"
+            f"DOM Context: {dom_slice}\n\n"
+            "Return ONLY a JSON array of objects with keys: description, action (navigate|click|fill|wait|scroll|press), "
+            "selector (omit if navigate), url (only if navigate), value (only if fill), key (only if press). "
+            "Use visible text from the screenshot for selectors. Limit to 5 steps."
+        )
+    else:
+        prompt = (
+            "You are continuing an in-progress UI automation plan. "
+            "Given new UI state (possibly a modal/form/success layer) produce the NEXT focused steps only.\n\n"
+            f"Task: {task}\nCurrent URL: {url or 'unknown'}\n"
+            f"Recent Steps JSON: {json.dumps(hist_serializable, ensure_ascii=False)}\n\n"
+            f"DOM Slice: {dom_slice}\n\n"
+            "Return ONLY a JSON array of objects with keys: description, action (navigate|click|fill|wait|scroll), selector (omit if navigate), url (only if navigate), value (only if fill). "
+            "Skip any redundant login/auth. Prefer interacting with newly visible modal/form fields or closing success banners. Limit to 5 steps."
+        )
 
     def _provider_call(build_fn):
         try:
@@ -337,6 +554,14 @@ def get_dynamic_steps(task: str, url: str | None, html: str | None, history: lis
 
     # OpenAI
     if (provider in ["", "openai"]) and os.getenv("OPENAI_API_KEY"):
+        # Try vision first if available
+        if vision_data:
+            content = _call_with_vision_openai(prompt, vision_data["b64"], model_override)
+            if content:
+                steps = _validate_steps(_extract_json_array(content))
+                if steps:
+                    return steps
+
         def _openai_call():
             import openai
             client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -354,6 +579,14 @@ def get_dynamic_steps(task: str, url: str | None, html: str | None, history: lis
 
     # Anthropic
     if (provider in ["", "anthropic"]) and os.getenv("ANTHROPIC_API_KEY"):
+        # Try vision first if available
+        if vision_data:
+            content = _call_with_vision_anthropic(prompt, vision_data["b64"], model_override)
+            if content:
+                steps = _validate_steps(_extract_json_array(content))
+                if steps:
+                    return steps
+
         def _anthropic_call():
             import anthropic
             client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -371,6 +604,14 @@ def get_dynamic_steps(task: str, url: str | None, html: str | None, history: lis
 
     # Gemini
     if (provider in ["", "google", "gemini"]) and os.getenv("GEMINI_API_KEY"):
+        # Try vision first if available
+        if vision_data:
+            content = _call_with_vision_gemini(prompt, vision_data["bytes"], model_override)
+            if content:
+                steps = _validate_steps(_extract_json_array(content))
+                if steps:
+                    return steps
+
         def _gemini_call():
             import google.generativeai as genai
             genai.configure(api_key=os.getenv("GEMINI_API_KEY"))

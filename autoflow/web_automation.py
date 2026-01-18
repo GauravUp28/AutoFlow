@@ -1,5 +1,5 @@
 from playwright.sync_api import sync_playwright
-from autoflow.ui_state_capturer import capture_screenshot
+from autoflow.ui_state_capturer import capture_screenshot, capture_screenshot_bytes
 from autoflow.state_tracker import detect_ui_change
 from autoflow.llm_interpreter import get_steps_and_selectors, get_dynamic_steps
 from autoflow.auth_support import get_site_credentials, is_login_like, attempt_login, get_login_urls, task_requires_authentication
@@ -13,7 +13,14 @@ from urllib.parse import quote_plus
 from urllib.parse import urlparse
 from autoflow.brand_utils import extract_brands
 from autoflow.constants import AUTH_KEYWORDS
-import json
+
+# Import vision utilities
+try:
+    from autoflow.vision_utils import is_vision_enabled
+    VISION_AVAILABLE = True
+except ImportError:
+    VISION_AVAILABLE = False
+    def is_vision_enabled(): return False
 
 # Metadata generation removed for clean output
 
@@ -41,6 +48,22 @@ def _first_visible(page, selector: str, max_scan: int = 12):
     except Exception:
         pass
     return None
+
+
+def _click_first_visible(locator, max_scan: int = 12, timeout: int = 4000) -> bool:
+    try:
+        cnt = locator.count()
+        for i in range(min(cnt, max_scan)):
+            cand = locator.nth(i)
+            try:
+                if cand.is_visible():
+                    cand.click(timeout=timeout)
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return False
 
 
 def _robust_click(page, selector: str) -> bool:
@@ -94,15 +117,25 @@ def _robust_click(page, selector: str) -> bool:
             pass
         # Try exact text match
         try:
-            page.get_by_text(label, exact=False).first.click(timeout=6000)
-            return True
+            loc = page.get_by_text(label, exact=False)
+            if _click_first_visible(loc, timeout=6000):
+                return True
         except Exception:
             pass
         # Try role-based match
         for role in ["button", "link"]:
             try:
-                page.get_by_role(role, name=re.compile(re.escape(label), re.I)).first.click(timeout=4000)
-                return True
+                loc = page.get_by_role(role, name=re.compile(re.escape(label), re.I))
+                if _click_first_visible(loc, timeout=4000):
+                    return True
+            except Exception:
+                pass
+        # Special handling for "sign up" style CTAs
+        if any(tok in label_lower for tok in ["sign up", "signup", "sign-up", "register", "join"]):
+            try:
+                loc = page.locator("a[href*='signup' i], a[href*='sign-up' i], a[href*='register' i]")
+                if _click_first_visible(loc, timeout=4000):
+                    return True
             except Exception:
                 pass
         # Try partial href match for links (e.g., "playwright" in href)
@@ -325,6 +358,10 @@ def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=Fa
         # Dismiss common overlays/cookie banners to unblock interactions
         def _dismiss_overlays(page):
             overlay_selectors = [
+                "button:has-text('Accept all cookies')",
+                "button:has-text('Reject all cookies')",
+                "button:has-text('Allow all cookies')",
+                "button:has-text('Manage cookies')",
                 "button:has-text('Accept')",
                 "button:has-text('Agree')",
                 "button:has-text('I Agree')",
@@ -446,10 +483,17 @@ def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=Fa
                 print(f"[yellow]Attempting to authenticate...[/yellow]")
         
         on_auth_wall = needs_auth
-        
+
+        # Capture screenshot for vision-enhanced planning if enabled
+        vision_screenshot = None
+        if VISION_AVAILABLE and is_vision_enabled():
+            vision_screenshot = capture_screenshot_bytes(page)
+            if vision_screenshot:
+                print("[dim]Captured screenshot for vision-enhanced planning[/dim]")
+
         # Generate automation plan
         print(f"[cyan]Generating automation plan from live page...[/cyan]")
-        steps = get_steps_and_selectors(task, current_url, html)
+        steps = get_steps_and_selectors(task, current_url, html, screenshot=vision_screenshot)
         
         # If AI returned only generic actions, proceed; no heuristic regeneration in AI-only mode
         if steps and all(s.get('action') in ['wait', 'scroll'] for s in steps):
@@ -548,7 +592,10 @@ def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=Fa
                 
                 # Regenerate plan with authenticated context - pure AI, no hardcoded paths
                 print('[cyan]Regenerating plan for authenticated session...[/cyan]')
-                steps = get_steps_and_selectors(task, current_url, html)
+                # Capture fresh screenshot for vision after auth
+                if VISION_AVAILABLE and is_vision_enabled():
+                    vision_screenshot = capture_screenshot_bytes(page)
+                steps = get_steps_and_selectors(task, current_url, html, screenshot=vision_screenshot)
                 if out_dir:
                     plan_path = os.path.join(out_dir, 'steps_plan.json')
                     try:
@@ -665,6 +712,12 @@ def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=Fa
                         pre_modal_cnt = 0
                     clicked = _robust_click(page, selector)
                     if not clicked:
+                        try:
+                            _dismiss_overlays(page)
+                        except Exception:
+                            pass
+                        clicked = _robust_click(page, selector)
+                    if not clicked:
                         print(f"[yellow]  ⚠ Click failed - element may not be visible[/yellow]")
                     else:
                         # CRITICAL: Wait for DOM changes or navigation after click
@@ -719,8 +772,11 @@ def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=Fa
                                     if capture_screenshot(page, extra_name):
                                         took_extra_capture = True
                                         ui_change_detected = True
-                                        # Dynamic replan trigger on new layer
-                                        dyn_steps = get_dynamic_steps(task, page.url, current_dom, executed_history)
+                                        # Dynamic replan trigger on new layer (with vision if enabled)
+                                        dyn_screenshot = None
+                                        if VISION_AVAILABLE and is_vision_enabled():
+                                            dyn_screenshot = capture_screenshot_bytes(page)
+                                        dyn_steps = get_dynamic_steps(task, page.url, current_dom, executed_history, screenshot=dyn_screenshot)
                                         if dyn_steps:
                                             print(f"[cyan]AI added {len(dyn_steps)} dynamic step(s) after layer detection[/cyan]")
                                             # Insert right after current step
@@ -744,8 +800,11 @@ def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=Fa
                                 print(f"[green]  ✓ Success state captured (form/modal dismissed)")
                                 took_extra_capture = True
                                 ui_change_detected = True
-                                # Trigger dynamic steps for possible follow-up actions
-                                dyn_steps = get_dynamic_steps(task, page.url, page.content(), executed_history)
+                                # Trigger dynamic steps for possible follow-up actions (with vision if enabled)
+                                dyn_screenshot = None
+                                if VISION_AVAILABLE and is_vision_enabled():
+                                    dyn_screenshot = capture_screenshot_bytes(page)
+                                dyn_steps = get_dynamic_steps(task, page.url, page.content(), executed_history, screenshot=dyn_screenshot)
                                 if dyn_steps:
                                     print(f"[cyan]AI added {len(dyn_steps)} dynamic step(s) after success state[/cyan]")
                                     steps[idx+1:idx+1] = dyn_steps
@@ -998,6 +1057,7 @@ def run_task_on_webapp(task, url=None, out_dir=None, headless=None, skip_auth=Fa
                     "final_capture": final_ok,
                     "provider": os.getenv('PLANNER_PROVIDER'),
                     "model": os.getenv('PLANNER_MODEL') or os.getenv('OPENAI_MODEL') or os.getenv('ANTHROPIC_MODEL') or os.getenv('GEMINI_MODEL'),
+                    "vision_enabled": VISION_AVAILABLE and is_vision_enabled(),
                 }
                 try:
                     with open(os.path.join(out_dir, 'run_summary.json'), 'w', encoding='utf-8') as sf:
