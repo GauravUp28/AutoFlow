@@ -19,6 +19,16 @@ Enter any task when prompted, for example:
 
 Outputs are saved under `dataset/<site-slug>/<task-slug>/` including per-step screenshots, a JSON plan, and a markdown log.
 
+## Web App (Streamlit)
+
+Run the optional UI:
+
+```powershell
+streamlit run web_app.py
+```
+
+The UI lets you toggle headless mode, skip auth, and load cookie files, and it renders the captured artifacts.
+
 ## 🔐 Authentication (Minimal, AI-Centric)
 
 AutoFlow supports **3 ways** to handle real authentication:
@@ -59,6 +69,7 @@ Example `credentials.json`:
 - `autoflow/llm_interpreter.py`: LLM planner + dynamic replan API (`get_steps_and_selectors`, `get_dynamic_steps`).
 - `autoflow/url_inference.py`: Pattern & search-based host discovery (brand → domain).
 - `autoflow/ui_state_capturer.py`: Screenshot helper (smart capture mode).
+- `autoflow/vision_utils.py`: Vision utilities for multimodal planning (optional).
 - `autoflow/state_tracker.py`: Lightweight DOM change utilities.
 - (Removed) `heuristic_planner.py`: Eliminated in AI-only implementation.
 
@@ -88,6 +99,7 @@ Optional:
 ```env
 CAPTURE_MODE=smart   # (default) only capture meaningful state changes
 # CAPTURE_MODE=all   # capture after every step
+USE_VISION=1         # enable vision/multimodal planning (screenshot + DOM)
 ```
 
 If the LLM fails, a minimal 2-step placeholder plan is used (wait + scroll) – no heuristics.
@@ -100,8 +112,24 @@ Optional variables to refine behavior:
 - `DEFAULT_EMAIL`, `DEFAULT_PASSWORD` – Generic auth fallback credentials
 - `DEFAULT_FIRST_NAME`, `DEFAULT_LAST_NAME`, `DEFAULT_USERNAME` – Form fill defaults
 - `VERBOSE_DOMAIN_LOGS=1` – Show detailed domain scoring, rejection reasons during URL selection (keep off for clean runs; enable for debugging wrong domain picks)
+- `DEBUG_URL_INFERENCE=1` – Print top URL candidates during inference
+- `PLANNER_MODEL` – Override the default model for the selected provider
+- `BASE_URL_<BRAND>` – Explicit homepage override for a detected brand (e.g., `BASE_URL_GITHUB=https://github.com`)
 
 Unified auth gating is driven by constants in `autoflow/constants.py` (`AUTH_KEYWORDS`, `CREATION_AUTH_KEYWORDS`). Tasks containing any of those tokens are treated as requiring workspace access; read-only tasks (search/view/download) will not be forced through login.
+
+## CLI Options
+
+```text
+python -m autoflow --task "Search for playwright in npm" --url https://www.npmjs.com
+  --task        Task to execute (if omitted, you will be prompted)
+  --url         Optional starting URL (skips inference)
+  --headless    Force headless mode
+  --no-auth     Skip authentication attempts
+  --email       Login email/username (non-interactive)
+  --password    Login password (non-interactive)
+  --cookies     Path to cookies JSON file
+```
 
 ## Dataset Artifacts
 Each task directory contains:
