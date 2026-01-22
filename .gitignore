@@ -29,7 +29,7 @@ Thumbs.db
 
 # Outputs (optional - comment out if you want to commit test results)
 dataset/
-screenshots/
+# screenshots/  # Uncommented to include README screenshots
 output/
 
 # Logs
