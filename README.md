@@ -4,9 +4,7 @@ AutoFlow automatically navigates live web apps, performs the requested task, and
 
 ## Demo Video
 
-<video width="720" controls>
-  <source src="https://gauravup28.github.io/AutoFlow/AutoFlow%20Live.mp4" type="video/mp4">
-</video>
+[![Watch Demo](screenshots/First%20Page.png)](https://gauravup28.github.io/AutoFlow/AutoFlow%20Live.mp4)
 
 
 
