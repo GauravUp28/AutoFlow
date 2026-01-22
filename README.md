@@ -2,6 +2,29 @@
 
 AutoFlow automatically navigates live web apps, performs the requested task, and captures screenshots of every UI state (including non-URL states like modals, forms, transient success banners). No hardcoding of sites or workflows. All step planning is performed by an LLM (OpenAI / Anthropic / Gemini) – no heuristic fallback.
 
+## Screenshots
+
+> **Note:** These screenshots are from the Streamlit Web UI, which is available for local development. AutoFlow is primarily a CLI tool. A full-fledged web application with a dedicated frontend is coming soon!
+
+<table>
+  <tr>
+    <td><img src="screenshots/First Page.png" alt="First Page" width="400"/></td>
+    <td><img src="screenshots/Successful Run.png" alt="Successful Run" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>First Page</b></td>
+    <td align="center"><b>Successful Run</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/Screenshot analytics.png" alt="Screenshot Analytics" width="400"/></td>
+    <td><img src="screenshots/Log Details.png" alt="Log Details" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Screenshot Analytics</b></td>
+    <td align="center"><b>Log Details</b></td>
+  </tr>
+</table>
+
 ## Quickstart (Windows PowerShell)
 
 ```powershell

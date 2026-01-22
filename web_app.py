@@ -25,7 +25,7 @@ except ImportError:
 # --- Page Config ---
 st.set_page_config(
     page_title="AutoFlow - AI Web Automation",
-    page_icon="🚀",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -48,6 +48,7 @@ st.markdown("""
         margin-bottom: 2rem;
         color: white;
         box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+        text-align: center;
     }
     .main-header h1 {
         margin: 0;
@@ -315,8 +316,8 @@ st.markdown("""
 # --- Header ---
 st.markdown("""
 <div class="main-header">
-    <h1>🚀 AutoFlow</h1>
-    <p>AI-powered web automation - describe your task and watch it happen</p>
+    <h1>⚡AutoFlow</h1>
+    <p>AI-powered web automation — describe your task and watch it happen</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -324,10 +325,10 @@ st.markdown("""
 with st.sidebar:
     st.markdown("## ⚙️ Configuration")
 
-    st.markdown("### 🖥️ Browser")
+    st.markdown("### Browser")
     headless = st.toggle("Headless Mode", value=False, help="Run browser in background")
 
-    st.markdown("### 🔐 Auth")
+    st.markdown("### Authentication")
     no_auth = st.toggle("Skip Authentication", value=False, help="Don't attempt automatic login")
 
     use_cookies = st.toggle("Use Saved Session", value=False, help="Load saved cookies")
@@ -339,9 +340,9 @@ with st.sidebar:
             help="Path to your saved cookie file"
         )
         if cookies_path and not os.path.exists(cookies_path):
-            st.error(f"⚠️ Not found: `{cookies_path}`")
+            st.error(f"Not found: {cookies_path}")
         elif cookies_path and os.path.exists(cookies_path):
-            st.success("✓ Cookie file found")
+            st.success("Cookie file found")
 
     st.markdown("### 🔑 Credentials")
     st.caption("Used if cookies disabled")
@@ -358,7 +359,7 @@ with st.sidebar:
 
     st.divider()
 
-    st.markdown("### 📊 Stats")
+    st.markdown("### Statistics")
     if 'total_runs' not in st.session_state:
         st.session_state.total_runs = 0
     if 'successful_runs' not in st.session_state:
@@ -374,25 +375,36 @@ with st.sidebar:
     st.caption("AutoFlow v1.0")
 
 # --- Main Interface ---
-st.markdown('<p class="section-title">📝 Enter Your Task</p>', unsafe_allow_html=True)
+st.markdown('<p class="section-title">Enter Your Task</p>', unsafe_allow_html=True)
+
+# Initialize session state for task input
+if 'task_value' not in st.session_state:
+    st.session_state.task_value = ""
 
 col1, col2 = st.columns([5, 1])
 with col1:
     task_input = st.text_input(
         "Task",
+        value=st.session_state.task_value,
         placeholder="e.g., Search for playwright in npm and open the first result",
         label_visibility="collapsed"
     )
 with col2:
-    run_btn = st.button("🚀 Run", type="primary", use_container_width=True)
+    run_btn = st.button("Run", type="primary", width="stretch")
 
-with st.expander("💡 Example Tasks"):
-    st.markdown("""
-    - Search for playwright in npm
-    - Find React documentation
-    - Look up Python requests library on PyPI
-    - Find GitHub repository for TensorFlow
-    """)
+# Example tasks as clickable buttons
+example_tasks = [
+    "Search for playwright in npm",
+    "Find React documentation",
+    "Look up Python requests library on PyPI",
+    "Find GitHub repository for TensorFlow"
+]
+
+with st.expander("Example Tasks"):
+    for task in example_tasks:
+        if st.button(task, key=f"example_{task}"):
+            st.session_state.task_value = task
+            st.rerun()
 
 # --- Helper Functions ---
 def get_action_color(action_type):
@@ -471,83 +483,76 @@ if run_btn and task_input:
 
     st.divider()
 
-    status_col, metrics_col = st.columns([2, 1])
+    with st.status("Initializing AutoFlow...", expanded=True) as status:
+        try:
+            st.write("**Step 1:** Analyzing task...")
+            url = get_url_for_task(task_input)
 
-    with status_col:
-        with st.status("🚀 Initializing AutoFlow...", expanded=True) as status:
-            try:
-                st.write("🔍 **Step 1:** Analyzing task...")
-                url = get_url_for_task(task_input)
+            if url:
+                st.success(f"Target: `{url}`")
+            else:
+                st.warning("No URL found - manual navigation")
 
-                if url:
-                    st.success(f"✓ Target: `{url}`")
-                else:
-                    st.warning("⚠️ No URL found - manual navigation")
+            st.write("**Step 2:** Preparing environment...")
+            brands = extract_brands(task_input)
+            if url:
+                try:
+                    from urllib.parse import urlparse
+                    host = urlparse(url).hostname or url
+                    app_slug = slugify(host)
+                except Exception:
+                    app_slug = slugify(url)
+            else:
+                app_slug = slugify(brands[0]) if brands else "manual_navigation"
 
-                st.write("📁 **Step 2:** Preparing environment...")
-                brands = extract_brands(task_input)
-                if url:
-                    try:
-                        from urllib.parse import urlparse
-                        host = urlparse(url).hostname or url
-                        app_slug = slugify(host)
-                    except Exception:
-                        app_slug = slugify(url)
-                else:
-                    app_slug = slugify(brands[0]) if brands else "manual_navigation"
+            task_slug = slugify(task_input)[:80]
+            out_dir = Path("dataset") / app_slug / task_slug
+            os.makedirs(out_dir, exist_ok=True)
+            st.success(f"Output: `{out_dir}`")
 
-                task_slug = slugify(task_input)[:80]
-                out_dir = Path("dataset") / app_slug / task_slug
-                os.makedirs(out_dir, exist_ok=True)
-                st.success(f"✓ Output: `{out_dir}`")
+            st.write("**Step 3:** Running automation...")
+            st.info("Check terminal for detailed logs")
 
-                st.write("🤖 **Step 3:** Running automation...")
-                st.info("Check terminal for detailed logs")
+            run_task_on_webapp(
+                task=task_input,
+                url=url,
+                out_dir=out_dir,
+                headless=headless,
+                skip_auth=no_auth,
+                cred_email=cred_email if cred_email else None,
+                cred_password=cred_password if cred_password else None,
+                cookies_path=cookies_path if use_cookies else None
+            )
 
-                run_task_on_webapp(
-                    task=task_input,
-                    url=url,
-                    out_dir=out_dir,
-                    headless=headless,
-                    skip_auth=no_auth,
-                    cred_email=cred_email if cred_email else None,
-                    cred_password=cred_password if cred_password else None,
-                    cookies_path=cookies_path if use_cookies else None
-                )
+            st.session_state.successful_runs += 1
+            status.update(label="Complete", state="complete", expanded=False)
 
-                st.session_state.successful_runs += 1
-                status.update(label="✅ Complete!", state="complete", expanded=False)
+        except Exception as e:
+            status.update(label="Failed", state="error")
+            st.error(f"**Error:** {str(e)}")
+            st.stop()
 
-            except Exception as e:
-                status.update(label="❌ Failed", state="error")
-                st.error(f"**Error:** {str(e)}")
-                st.stop()
+    # Statistics in horizontal layout
+    total_time = time.time() - start_time
+    screenshot_count = len(list(out_dir.glob("*.png")))
+    summary = load_run_summary(out_dir)
+    steps_count = summary.get('total_steps', 'N/A') if summary else 'N/A'
 
-    with metrics_col:
-        st.markdown("#### 📊 Stats")
-        total_time = time.time() - start_time
+    col1, col2, col3 = st.columns(3)
+    with col1:
         render_metric_card("Duration", f"{total_time:.1f}s", "success")
+    with col2:
+        render_metric_card("Screenshots", screenshot_count)
+    with col3:
+        render_metric_card("Steps", steps_count)
 
-        summary = load_run_summary(out_dir)
-        if summary:
-            render_metric_card("Screenshots", summary.get('total_captures', 'N/A'))
-            render_metric_card("Steps", summary.get('total_steps', 'N/A'))
-
-    # --- Results Display ---
     st.divider()
 
-    st.markdown("""
-    <div class="results-header">
-        <h3>✅ Execution Complete</h3>
-        <p>View captured screenshots and logs below</p>
-    </div>
-    """, unsafe_allow_html=True)
-
     tab_gallery, tab_timeline, tab_log, tab_details = st.tabs([
-        "📸 Gallery",
-        "📅 Timeline",
-        "📄 Log",
-        "🔧 Details"
+        "Gallery",
+        "Timeline",
+        "Log",
+        "Details"
     ])
 
     screenshots = sorted(list(out_dir.glob("*.png")))
@@ -556,27 +561,11 @@ if run_btn and task_input:
         if screenshots:
             st.caption(f"{len(screenshots)} screenshots captured")
 
-            view_col, filter_col = st.columns([3, 1])
-            with view_col:
-                view_mode = st.radio(
-                    "View",
-                    ["2 Columns", "3 Columns", "Full Width"],
-                    horizontal=True,
-                    label_visibility="collapsed"
-                )
-            with filter_col:
-                show_special_only = st.checkbox("Key frames only")
-
             screenshot_data = [{'path': s, **parse_screenshot_name(s)} for s in screenshots]
 
-            if show_special_only:
-                screenshot_data = [s for s in screenshot_data if s['is_special']]
-
-            num_cols = 3 if "3" in view_mode else (1 if "Full" in view_mode else 2)
-
-            cols = st.columns(num_cols)
+            cols = st.columns(2)
             for i, data in enumerate(screenshot_data):
-                with cols[i % num_cols]:
+                with cols[i % 2]:
                     badge_class = data['special_type'] if data['special_type'] else get_action_color(data['action'])
                     badge_text = data['special_type'].upper() if data['special_type'] else f"Step {data['step']}: {data['action'].upper()}"
 
@@ -585,7 +574,7 @@ if run_btn and task_input:
                         <span class="step-badge {badge_class}">{badge_text}</span>
                     </div>
                     """, unsafe_allow_html=True)
-                    st.image(str(data['path']), use_container_width=True)
+                    st.image(str(data['path']), width="stretch")
         else:
             st.info("No screenshots captured")
 
@@ -603,7 +592,7 @@ if run_btn and task_input:
                 """, unsafe_allow_html=True)
 
                 with st.expander("View Screenshot"):
-                    st.image(str(data['path']), use_container_width=True)
+                    st.image(str(data['path']), width="stretch")
 
             st.markdown('</div>', unsafe_allow_html=True)
         else:
@@ -648,8 +637,13 @@ if run_btn and task_input:
                 st.warning("Could not load plan")
 
 elif run_btn and not task_input:
-    st.warning("⚠️ Please enter a task first")
+    st.warning("Please enter a task first")
 
 # --- Footer ---
 st.divider()
-st.markdown('<p class="footer-text">AutoFlow • AI-Powered Web Automation</p>', unsafe_allow_html=True)
+st.markdown(
+    '<p class="footer-text">AutoFlow — AI-Powered Web Automation | '
+    '<a href="https://github.com/GauravUp28/AutoFlow" target="_blank" rel="noopener noreferrer">GitHub Repo</a>'
+    '</p>',
+    unsafe_allow_html=True
+)
